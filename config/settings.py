@@ -46,7 +46,10 @@ INSTALLED_APPS = [
     "posts",
     "chat",
     "notifications",
+    "core"
 ]
+
+AUTH_USER_MODEL = "accounts.User"  # Custom User model
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
