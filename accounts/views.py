@@ -6,6 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import RegisterSerializer, UserSerializer
 from core.responses import CustomResponse
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import check_password
+from django.contrib.auth import get_user_model
+User = get_user_model()
 
 
 class RegisterView(APIView):
@@ -37,9 +40,12 @@ class LoginView(APIView):
         if not email or not password:
             return CustomResponse(data={"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(email=email, password=password)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return CustomResponse(data={"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user is None:
+        if not check_password(password, user.password):
             return CustomResponse(data={"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
 
         # Generate JWT tokens
@@ -49,8 +55,12 @@ class LoginView(APIView):
         # Serialize user data
         user_data = UserSerializer(user, context={'request': request}).data
 
-        return CustomResponse(data={
-            "access": access_token,
-            "refresh": str(refresh),
-            "user_data": user_data
-        }, status=status.HTTP_200_OK,message="Login successful")
+        return CustomResponse(
+            data={
+                "access": access_token,
+                "refresh": str(refresh),
+                "user_data": user_data
+            },
+            status=status.HTTP_200_OK,
+            message="Login successful"
+        )
