@@ -6,21 +6,36 @@ from django.urls import reverse
 from django.utils.text import slugify 
 from django.utils import timezone
 import uuid
+import re
+
 
 class MyAccountManager(BaseUserManager):
     def create_user(self, first_name, last_name, email, password=None):
         if not email:
-            raise ValueError('User must have an email address')
+            raise ValueError("User must have an email address")
 
-        # Generate a unique username using first and last name + a UUID
-        base_username = f"{first_name.lower()}{last_name.lower()}".replace(" ", "")
-        username = base_username
+        # Clean and format the first and last names
+        first_name_clean = re.sub(r"[^a-zA-Z]", "", first_name).lower()
+        last_name_clean = re.sub(r"[^a-zA-Z]", "", last_name).lower()
+
+        # Generate a base username (e.g., firstname.lastname)
+        base_username = f"{first_name_clean}_{last_name_clean}"
+
+        # Ensure the username is not too long
+        max_username_length = 30
+        if len(base_username) > max_username_length:
+            base_username = base_username[:max_username_length]
 
         # Ensure username is unique
-        counter = 1
+        username = base_username
         while User.objects.filter(username=username).exists():
-            username = f"{base_username}{counter}"
-            counter += 1
+            # Append a short random string for uniqueness
+            random_string = uuid.uuid4().hex[:6]  # Take first 6 characters of a UUID
+            username = f"{base_username}@{random_string}"
+
+            # Ensure the username doesn't exceed the maximum length
+            if len(username) > max_username_length:
+                username = username[:max_username_length]
 
         user = self.model(
             email=self.normalize_email(email),
@@ -71,7 +86,7 @@ class User(AbstractBaseUser):
 
     def has_module_perms(self, add_label):
         return True
-    
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     profile_picture = models.ImageField(upload_to='users/profile_pictures/', blank=True, null=True)
@@ -105,7 +120,7 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} Profile"
-    
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
