@@ -95,13 +95,12 @@ class UserProfile(models.Model):
     city = models.CharField(max_length=50, blank=True, null=True)
     bio = models.TextField(max_length=500, blank=True, null=True)
     gender = models.CharField(max_length=10, blank=True, null=True)
-    phone_number = models.CharField(max_length=50,null=True, blank=True,unique=True)
+    phone_number = models.CharField(max_length=50,null=True, blank=True)
     created_at = models.DateTimeField("created_at", default=timezone.now)
     updated_at = models.DateTimeField( auto_now=True)
 
     def get_profile_picture(self):
         if self.profile_picture:
-            print("yes")
             return self.profile_picture.url
         return '/static/default_images/default_profile_picture.jpg'
     
