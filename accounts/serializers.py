@@ -3,7 +3,6 @@ from .models import User, UserProfile
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-
     class Meta:
         model = UserProfile
         fields = ['profile_picture', 'cover_picture', 'country', 'city', 'phone_number','bio', 'gender', 'full_name', 'full_address']
@@ -34,3 +33,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         validated_data.pop('password2')  # Remove password2 from data
         user = User.objects.create_user(**validated_data)
         return user
+
+
+class UserOtpSerializer(serializers.Serializer):
+    email = serializers.CharField(max_length=100)
+
+
+class ActiveAccountSerializer(serializers.Serializer):
+    email = serializers.CharField(max_length=100)
+    otp = serializers.CharField(max_length=100)
