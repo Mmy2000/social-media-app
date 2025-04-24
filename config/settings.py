@@ -1,5 +1,3 @@
-
-
 import os
 from pathlib import Path
 from datetime import timedelta
@@ -15,6 +13,7 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+WEBSITE_URL = "http://127.0.0.1:8000/"
 
 # Application definition
 

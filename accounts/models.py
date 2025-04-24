@@ -4,6 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 import uuid
+from django.conf import settings
 
 
 class MyAccountManager(BaseUserManager):
@@ -91,20 +92,34 @@ class UserProfile(models.Model):
     created_at = models.DateTimeField("created_at", default=timezone.now)
     updated_at = models.DateTimeField( auto_now=True)
 
+    @property
+    def age(self):
+        if self.date_of_birth:
+            return timezone.now().year - self.date_of_birth.year
+        return None
+
+    @property
+    def is_adult(self):
+        if self.date_of_birth:
+            return (timezone.now().year - self.date_of_birth.year) >= 18
+        return None
+
+    @property
     def get_profile_picture(self):
         if self.profile_picture:
             return self.profile_picture.url
-        return '/static/default_images/default_profile_picture.jpg'
-    
+        return "/static/default_images/default_profile_picture.jpg"
+
+    @property
     def get_cover_picture(self):
         if self.cover_picture:
             return self.cover_picture.url
-        return '/static/default_images/default_profile_picture.jpg'
-    
+        return "/static/default_images/beach_1.jpg"
+
     @property
     def full_name(self):
         return f"{self.user.first_name} {self.user.last_name}"
-    
+
     @property
     def full_address(self):
         return f"{self.country} | {self.city}"

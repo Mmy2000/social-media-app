@@ -31,6 +31,8 @@ class UserProfileUpdate(serializers.ModelSerializer):
             "bio",
             "gender",
             "date_of_birth",
+            "age",
+            "is_adult",
             "marital_status",
             "user"
         ]
@@ -49,21 +51,37 @@ class UserProfileUpdate(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
+    cover_picture = serializers.SerializerMethodField()
+
     class Meta:
         model = UserProfile
         fields = [
-            "profile_picture",
-            "cover_picture",
+            "full_name",
+            "full_address",
             "country",
             "city",
             "phone_number",
-            "bio",
             "gender",
             "date_of_birth",
+            "age",
+            "is_adult",
             "marital_status",
-            "full_name",
-            "full_address",
+            "bio",
+            "profile_picture",
+            "cover_picture",
         ]
+
+    def get_profile_picture(self, obj):
+        request = self.context.get("request")
+        url = obj.get_profile_picture
+        return request.build_absolute_uri(url) if request else url
+
+    def get_cover_picture(self, obj):
+        request = self.context.get("request")
+        url = obj.get_cover_picture
+        return request.build_absolute_uri(url) if request else url
+
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(source="userprofile", read_only=True)

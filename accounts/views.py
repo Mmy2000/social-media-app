@@ -294,7 +294,7 @@ class ProfileView(APIView):
 
     def get(self, request):
         user = request.user
-        serializer = self.serializer_class(user, context={"request": request})
+        serializer = self.serializer_class(user,partial=True, context={"request": request})
         return CustomResponse(data=serializer.data, message=_("User profile retrieved successfully"), status=status.HTTP_200_OK)
 
 class ProfileUpdateView(APIView):
