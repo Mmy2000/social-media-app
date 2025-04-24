@@ -3,7 +3,16 @@ from rest_framework import status
 from rest_framework.views import APIView
 from accounts.models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import  ChangePasswordSerializer, ForgotPasswordSerializer, RegisterSerializer, ResetPasswordSerializer, UserSerializer, ActiveAccountSerializer,LoginOrRegisterSerializer
+from .serializers import (
+    ChangePasswordSerializer,
+    ForgotPasswordSerializer,
+    RegisterSerializer,
+    ResetPasswordSerializer,
+    UserProfileUpdate,
+    UserSerializer,
+    ActiveAccountSerializer,
+    LoginOrRegisterSerializer,
+)
 from core.responses import CustomResponse
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model
@@ -280,3 +289,37 @@ class LogoutView(generics.GenericAPIView):
             return CustomResponse(data={}, message=_("logged out successfully"), status=status.HTTP_205_RESET_CONTENT)
         except Exception as e:
             return CustomResponse(data={}, message=str(e), status=status.HTTP_400_BAD_REQUEST)
+
+class ProfileView(APIView):
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        serializer = self.serializer_class(user, context={"request": request})
+        return CustomResponse(data=serializer.data, message=_("User profile retrieved successfully"), status=status.HTTP_200_OK)
+
+class ProfileUpdateView(APIView):
+    serializer_class = UserProfileUpdate
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request):
+        user = request.user
+        try:
+            profile = user.userprofile  # make sure every user has a UserProfile instance
+        except UserProfile.DoesNotExist:
+            return CustomResponse(message=_("User profile not found"), status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(profile, data=request.data, partial=True, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse(
+                data=serializer.data,
+                message=_("User profile updated successfully"),
+                status=status.HTTP_200_OK
+            )
+        return CustomResponse(
+            data=serializer.errors,
+            message=_("Failed to update profile"),
+            status=status.HTTP_400_BAD_REQUEST
+        )

@@ -3,11 +3,67 @@ from .models import User, UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
+class SampleUserData(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["first_name", "last_name", "username"]
+        extra_kwargs = {
+            "username": {"validators": []}  # disable default uniqueness validator
+        }
+
+    def validate_username(self, value):
+        user = self.context["request"].user
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+            raise serializers.ValidationError("This username is already taken.")
+        return value
+
+
+class UserProfileUpdate(serializers.ModelSerializer):
+    user = SampleUserData()
+    class Meta:
+        model = UserProfile
+        fields = [
+            "profile_picture",
+            "cover_picture",
+            "country",
+            "city",
+            "phone_number",
+            "bio",
+            "gender",
+            "date_of_birth",
+            "marital_status",
+            "user"
+        ]
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop("user", None)
+        if user_data:
+            user = instance.user
+            for attr, value in user_data.items():
+                setattr(user, attr, value)
+            user.save()
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['profile_picture', 'cover_picture', 'country', 'city', 'phone_number','bio', 'gender', 'full_name', 'full_address']
-
+        fields = [
+            "profile_picture",
+            "cover_picture",
+            "country",
+            "city",
+            "phone_number",
+            "bio",
+            "gender",
+            "date_of_birth",
+            "marital_status",
+            "full_name",
+            "full_address",
+        ]
 
 class UserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(source="userprofile", read_only=True)
