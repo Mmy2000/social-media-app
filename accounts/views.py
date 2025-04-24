@@ -14,9 +14,7 @@ from .serializers import (
     LoginOrRegisterSerializer,
 )
 from core.responses import CustomResponse
-from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
 from django.conf import settings
 from django.core.mail import EmailMessage
 from rest_framework import status, generics
