@@ -35,10 +35,49 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-class UserOtpSerializer(serializers.Serializer):
-    email = serializers.CharField(max_length=100)
-
-
 class ActiveAccountSerializer(serializers.Serializer):
     email = serializers.CharField(max_length=100)
     otp = serializers.CharField(max_length=100)
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    current_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
+
+    def validate(self, data):
+        if data["new_password"] != data["confirm_password"]:
+            raise serializers.ValidationError(
+                "New password and confirm password do not match."
+            )
+        return data
+
+class ResetPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, min_length=8)
+
+    def validate_otp(self, value):
+        """Validate the OTP"""
+        user = User.objects.get(email=self.initial_data["email"])
+        print("User OTP:", user.otp)
+        print("Provided OTP:", value)
+        if user.otp != value:
+            raise serializers.ValidationError("Invalid OTP")
+        return value
+
+    def save(self):
+        email = self.validated_data["email"]
+        new_password = self.validated_data["new_password"]
+
+        user = User.objects.get(email=email)
+        user.set_password(new_password)
+        user.save()
+
+        # Clear OTP after successful reset
+        user.otp = None
+        user.save()
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()

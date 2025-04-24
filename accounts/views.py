@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from accounts.models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import  RegisterSerializer, UserSerializer, UserOtpSerializer, ActiveAccountSerializer
+from .serializers import  ChangePasswordSerializer, ForgotPasswordSerializer, RegisterSerializer, ResetPasswordSerializer, UserSerializer, ActiveAccountSerializer
 from core.responses import CustomResponse
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model
@@ -12,6 +12,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from rest_framework import status, generics
 from django.utils.translation import gettext as _
+from rest_framework.permissions import IsAuthenticated
 
 User = get_user_model()
 
@@ -52,30 +53,6 @@ class RegisterView(SendOTPEmailMixin, generics.CreateAPIView):
             }, status=status.HTTP_201_CREATED, message="User registered successfully. Check your email for OTP.")
 
         return CustomResponse(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-class UserOtpView(APIView):
-    def post(self, request, *args, **kwargs):
-        serializer = UserOtpSerializer(data=request.data)
-        if serializer.is_valid(raise_exception=True):
-            email = serializer.validated_data["email"]
-            try:
-                user = User.objects.get(email=email)
-                return CustomResponse(
-                    {"otp": user.otp},
-                    status=status.HTTP_200_OK,
-                    message=_("OTP sent successfully."),
-                )
-            except User.DoesNotExist:
-                return CustomResponse(
-                    {
-                        "error": _(
-                            "The email address you entered does not exist. Please check the email or register a new account."
-                        )
-                    },
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-        return CustomResponse(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ActiveAccountView(SendOTPEmailMixin,APIView):
@@ -156,3 +133,100 @@ class LoginView(APIView):
             status=status.HTTP_200_OK,
             message="Login successful",
         )
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if not user.check_password(serializer.validated_data["current_password"]):
+                return CustomResponse(
+                    data={},
+                    status=status.HTTP_400_BAD_REQUEST,
+                    message="Current password is incorrect",
+                )
+
+            user.set_password(serializer.validated_data["new_password"])
+            user.save()
+            return CustomResponse(
+                data={},
+                status=status.HTTP_200_OK,
+                message="Password changed successfully",
+            )
+        return CustomResponse(
+            data=serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST,
+            message="Password change failed",
+        )
+
+
+class ForgotPasswordView(SendOTPEmailMixin, generics.GenericAPIView):
+    serializer_class = ForgotPasswordSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            email = serializer.validated_data["email"]
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return CustomResponse(
+                    data={},
+                    message=_("User with this email does not exist."),
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            otp = random.randint(1000, 9999)
+            user.otp = otp
+            user.save()
+
+            subject = "Password Reset Request"
+            message = f"Hello, use this code to reset your password {otp} ."
+            self.send_message(email, message, subject)
+            return CustomResponse(
+                data={},
+                message=_("Password reset email has been sent."),
+                status=status.HTTP_200_OK,
+            )
+        return CustomResponse(
+            data=serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+class ResetPasswordView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = ResetPasswordSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            email = serializer.validated_data['email']
+            password = serializer.validated_data['new_password']
+            if User.objects.filter(email=email):
+                user = User.objects.get(email=email)
+                if user.check_password(password):
+                    return CustomResponse(data={}, message="not allowed one of your past passwords",
+                                          status=status.HTTP_400_BAD_REQUEST)
+
+                user.set_password(password)
+                user.otp = None
+                user.save()
+                return CustomResponse(data={}, message="password changed successfully", status=status.HTTP_200_OK)
+            else:
+                return CustomResponse(data={}, message="user not found", status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResendCodeView(generics.GenericAPIView, SendOTPEmailMixin):
+    serializer_class = ForgotPasswordSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            email = serializer.validated_data["email"]
+            otp = self.send_otp(email)
+            user = User.objects.get(email=email)
+            user.otp = otp
+            user.save()
+            return CustomResponse(
+                data={},
+                message=_("code has been sent successfully"),
+                status=status.HTTP_200_OK,
+            )
