@@ -6,7 +6,7 @@ from django.contrib.auth.admin import UserAdmin
 
 class AccountAdmin(UserAdmin):
     # Display fields in the admin list view
-    list_display = ('email', 'first_name', 'last_name', 'username', 'last_login', 'date_joined', 'is_active', 'is_admin')
+    list_display = ('email', 'first_name', 'last_name', 'username','source' ,'last_login', 'date_joined', 'is_active', 'is_admin')
     
     # Fields that can be clicked to open the user’s detail view
     list_display_links = ('email', 'first_name', 'last_name')
@@ -18,7 +18,7 @@ class AccountAdmin(UserAdmin):
     list_filter = ('is_active', 'is_admin', 'date_joined')
     
     # Add a search bar for key fields
-    search_fields = ('email', 'username', 'first_name', 'last_name')
+    search_fields = ('email', 'username', 'first_name', 'last_name','source')
     
     # Customize the form fieldsets to organize fields better
     fieldsets = (

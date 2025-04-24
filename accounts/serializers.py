@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import User, UserProfile
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -13,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'username','is_active','profile']
+        fields = ['id', 'first_name', 'last_name', 'email', 'username','source','is_active','profile']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -60,8 +61,6 @@ class ResetPasswordSerializer(serializers.Serializer):
     def validate_otp(self, value):
         """Validate the OTP"""
         user = User.objects.get(email=self.initial_data["email"])
-        print("User OTP:", user.otp)
-        print("Provided OTP:", value)
         if user.otp != value:
             raise serializers.ValidationError("Invalid OTP")
         return value
@@ -81,3 +80,35 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
+class LoginOrRegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    username = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+    first_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+    last_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+    source = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+
+    def create_or_get_user(self, validated_data):
+        email = validated_data.get('email')
+        username = validated_data.get('username', email.split('@')[0])
+        first_name = validated_data.get('first_name', '')
+        last_name = validated_data.get('last_name', '')
+        source = validated_data.get('source', 'local')
+
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={
+                'username': username,
+                'first_name': first_name,
+                'last_name': last_name,
+                'source': source,
+            }
+        )
+
+        refresh = RefreshToken.for_user(user)
+        tokens = {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+
+        return user, created, tokens

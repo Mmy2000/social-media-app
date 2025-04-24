@@ -15,28 +15,12 @@ class MyAccountManager(BaseUserManager):
         if not email:
             raise ValueError("User must have an email address")
 
-        # Clean and format the first and last names
-        first_name_clean = re.sub(r"[^a-zA-Z]", "", first_name).lower()
-        last_name_clean = re.sub(r"[^a-zA-Z]", "", last_name).lower()
-
-        # Generate a base username (e.g., firstname.lastname)
-        base_username = f"{first_name_clean}_{last_name_clean}"
-
-        # Ensure the username is not too long
-        max_username_length = 30
-        if len(base_username) > max_username_length:
-            base_username = base_username[:max_username_length]
-
         # Ensure username is unique
-        username = base_username
+        username = email.split("@")[0]  # Use the part before the @ as a base username
         while User.objects.filter(username=username).exists():
             # Append a short random string for uniqueness
             random_string = uuid.uuid4().hex[:6]  # Take first 6 characters of a UUID
-            username = f"{base_username}@{random_string}"
-
-            # Ensure the username doesn't exceed the maximum length
-            if len(username) > max_username_length:
-                username = username[:max_username_length]
+            username = f"{username}@{random_string}"
 
         user = self.model(
             email=self.normalize_email(email),
@@ -60,11 +44,19 @@ class MyAccountManager(BaseUserManager):
 
 
 class User(AbstractBaseUser):
+    SOURCES = (
+        ("local", "local"),
+        ("google", "google"),
+        ("facebook", "facebook"),
+        ("linkedin", "linkedin"),
+        ("twitter", "twitter"),
+    )
+
     first_name      = models.CharField(max_length=50)
     last_name       = models.CharField(max_length=50)
     username        = models.CharField(max_length=50, unique=True)
     email           = models.EmailField(max_length=100, unique=True)
-    
+
     # required
     date_joined     = models.DateTimeField(auto_now_add=True)
     last_login      = models.DateTimeField(auto_now_add=True)
@@ -73,6 +65,7 @@ class User(AbstractBaseUser):
     is_active       = models.BooleanField(default=False)
     is_superadmin   = models.BooleanField(default=False)
     otp             = models.CharField(max_length=6, blank=True, null=True)
+    source = models.CharField(choices=SOURCES, max_length=50, default="local")
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']

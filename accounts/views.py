@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from accounts.models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import  ChangePasswordSerializer, ForgotPasswordSerializer, RegisterSerializer, ResetPasswordSerializer, UserSerializer, ActiveAccountSerializer
+from .serializers import  ChangePasswordSerializer, ForgotPasswordSerializer, RegisterSerializer, ResetPasswordSerializer, UserSerializer, ActiveAccountSerializer,LoginOrRegisterSerializer
 from core.responses import CustomResponse
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth import get_user_model
@@ -230,3 +230,53 @@ class ResendCodeView(generics.GenericAPIView, SendOTPEmailMixin):
                 message=_("code has been sent successfully"),
                 status=status.HTTP_200_OK,
             )
+
+
+class LoginOrRegisterView(generics.GenericAPIView, SendOTPEmailMixin):
+
+    def post(self, request, *args, **kwargs):
+        serializer = LoginOrRegisterSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user, created, tokens = serializer.create_or_get_user(
+                serializer.validated_data
+            )
+            if created:
+                # New user registered
+                user.otp = random.randint(1000, 9999)
+                user.save()
+                self.send_message(user.email, f'Your OTP code is {user.otp}', 'Your OTP Code')
+                return CustomResponse(data={
+                    "access": tokens["access"],
+                    "refresh": tokens["refresh"],
+                    "user_data": UserSerializer(user, context={"request": request}).data,
+                }, status=status.HTTP_201_CREATED, message="User registered successfully. Check your email for OTP.")
+            else:
+                # Existing user logged in
+                if not user.is_active:
+                    return CustomResponse(data={
+                    "access": tokens["access"],
+                    "refresh": tokens["refresh"],
+                    "user_data": UserSerializer(user, context={"request": request}).data,
+                }, status=status.HTTP_403_FORBIDDEN, message="Account not active. Please verify OTP.")
+                return CustomResponse(data={
+                    "access": tokens["access"],
+                    "refresh": tokens["refresh"],
+                    "user_data": UserSerializer(user, context={"request": request}).data,
+                }, status=status.HTTP_200_OK, message="Login successful")
+
+        return CustomResponse(
+            data=serializer.errors, status=status.HTTP_400_BAD_REQUEST, message="Invalid data"
+        )
+
+
+class LogoutView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data["refresh"]
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            return CustomResponse(data={}, message=_("logged out successfully"), status=status.HTTP_205_RESET_CONTENT)
+        except Exception as e:
+            return CustomResponse(data={}, message=str(e), status=status.HTTP_400_BAD_REQUEST)
