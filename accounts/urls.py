@@ -23,6 +23,6 @@ urlpatterns = [
     path("resend_code/", ResendCodeView.as_view(), name="resend_code"),
     path("social_login/", SocialLoginView.as_view(), name="social_login"),
     path("logout/", LogoutView.as_view(), name="logout"),
-    path("profile/", ProfileView.as_view(), name="profile"),
+    path("profile/<int:user_id>/", ProfileView.as_view(), name="profile"),
     path("update_profile/", ProfileUpdateView.as_view(), name="update_profile"),
 ]

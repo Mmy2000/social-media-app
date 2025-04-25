@@ -19,7 +19,8 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from rest_framework import status, generics
 from django.utils.translation import gettext as _
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.shortcuts import get_object_or_404
 
 User = get_user_model()
 
@@ -288,14 +289,38 @@ class LogoutView(generics.GenericAPIView):
         except Exception as e:
             return CustomResponse(data={}, message=str(e), status=status.HTTP_400_BAD_REQUEST)
 
+
 class ProfileView(APIView):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]  # Allow both anonymous and authenticated users
 
-    def get(self, request):
-        user = request.user
-        serializer = self.serializer_class(user,partial=True, context={"request": request})
-        return CustomResponse(data=serializer.data, message=_("User profile retrieved successfully"), status=status.HTTP_200_OK)
+    def get(self, request, user_id):
+        user = get_object_or_404(User, id=user_id)
+        serializer = self.serializer_class(user, partial=True, context={"request": request})
+
+        # Safely determine if the authenticated user is the profile owner
+        is_owner = False
+        if request.user.is_authenticated and request.user.id == user_id:
+            is_owner = True
+
+        # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
+
+        posts = ''
+        followers = ''
+        friends = ''
+
+        return CustomResponse(
+            data={
+                "user_data": serializer.data,
+                "posts": posts,
+                "followers": followers,
+                "friends": friends,
+                "is_owner": is_owner
+            },
+            message=_("User profile retrieved successfully"),
+            status=status.HTTP_200_OK,
+        )
+
 
 class ProfileUpdateView(APIView):
     serializer_class = UserProfileUpdate
