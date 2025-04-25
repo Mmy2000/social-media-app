@@ -8,7 +8,7 @@ from .views import (
     ResendCodeView,
     ResetPasswordView,
     LogoutView,
-    LoginOrRegisterView,
+    SocialLoginView,
     ProfileView,
     ProfileUpdateView,
 )
@@ -21,7 +21,7 @@ urlpatterns = [
     path("forget-password/", ForgotPasswordView.as_view(), name="forget_password"),
     path("reset_password/", ResetPasswordView.as_view(), name="reset_password"),
     path("resend_code/", ResendCodeView.as_view(), name="resend_code"),
-    path("social_login/", LoginOrRegisterView.as_view(), name="social_login"),
+    path("social_login/", SocialLoginView.as_view(), name="social_login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("profile/", ProfileView.as_view(), name="profile"),
     path("update_profile/", ProfileUpdateView.as_view(), name="update_profile"),

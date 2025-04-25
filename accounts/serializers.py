@@ -155,11 +155,13 @@ class ResetPasswordSerializer(serializers.Serializer):
 class ForgotPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
-class LoginOrRegisterSerializer(serializers.Serializer):
+
+class SocialLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     username = serializers.CharField(required=False, allow_blank=True)  # Optional for login
     first_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
     last_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+    profile_image = serializers.ImageField(required=False, allow_null=True)  # Optional for login
     source = serializers.CharField(required=False, allow_blank=True)  # Optional for login
 
     def create_or_get_user(self, validated_data):
@@ -168,6 +170,7 @@ class LoginOrRegisterSerializer(serializers.Serializer):
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
         source = validated_data.get('source', 'local')
+        image = validated_data.get('profile_image', None)
 
         user, created = User.objects.get_or_create(
             email=email,
@@ -178,6 +181,9 @@ class LoginOrRegisterSerializer(serializers.Serializer):
                 'source': source,
             }
         )
+        if created and image:
+            user.userprofile.profile_picture = image
+            user.userprofile.save()
 
         refresh = RefreshToken.for_user(user)
         tokens = {

@@ -11,7 +11,7 @@ from .serializers import (
     UserProfileUpdate,
     UserSerializer,
     ActiveAccountSerializer,
-    LoginOrRegisterSerializer,
+    SocialLoginSerializer,
 )
 from core.responses import CustomResponse
 from django.contrib.auth import get_user_model
@@ -239,10 +239,10 @@ class ResendCodeView(generics.GenericAPIView, SendOTPEmailMixin):
             )
 
 
-class LoginOrRegisterView(generics.GenericAPIView, SendOTPEmailMixin):
+class SocialLoginView(generics.GenericAPIView, SendOTPEmailMixin):
 
     def post(self, request, *args, **kwargs):
-        serializer = LoginOrRegisterSerializer(data=request.data)
+        serializer = SocialLoginSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user, created, tokens = serializer.create_or_get_user(
                 serializer.validated_data
