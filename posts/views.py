@@ -1,5 +1,5 @@
 from rest_framework import status, generics, permissions
-from posts.models import Like, Post
+from posts.models import Comment, Like, Post
 from .serializers import PostSerializer, CommentSerializer,PostLikeSerializer ,PostCreateSerializer
 from rest_framework.views import APIView
 from core.responses import CustomResponse
@@ -137,3 +137,34 @@ class AddCommentView(APIView):
             return CustomResponse(data=serializer.data,message="Comment added successfully" ,status=status.HTTP_201_CREATED)
 
         return CustomResponse(data={},message=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateCommentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            comment = Comment.objects.get(pk=pk)
+        except Comment.DoesNotExist:
+            return CustomResponse(
+                data={},
+                message="Comment not found",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = CommentSerializer(comment, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return CustomResponse(data=serializer.data,message="Comment updated successfully" ,status=status.HTTP_200_OK)
+
+        return CustomResponse(data={},message=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class DeleteCommentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            comment = Comment.objects.get(pk=pk)
+            comment.delete()
+            return CustomResponse(data={},message="Comment deleted successfully" ,status=status.HTTP_200_OK)
+        except Comment.DoesNotExist:
+            return CustomResponse(data={},message="Comment not found", status=status.HTTP_404_NOT_FOUND)
