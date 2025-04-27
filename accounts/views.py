@@ -3,6 +3,9 @@ from rest_framework import status
 from rest_framework.views import APIView
 from accounts.models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from posts.models import Post
+from posts.serializers import PostSerializer
 from .serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
@@ -302,10 +305,14 @@ class ProfileView(APIView):
         is_owner = False
         if request.user.is_authenticated and request.user.id == user_id:
             is_owner = True
+            posts = Post.objects.filter(created_by=user).order_by("-created_at")
 
         # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
 
-        posts = ''
+        posts = Post.objects.filter(created_by=user, role="public").order_by(
+            "-created_at"
+        )
+        posts = PostSerializer(posts, many=True, context={"request": request}).data
         followers = ''
         friends = ''
 
