@@ -1,6 +1,6 @@
 from rest_framework import status, generics, permissions
-from posts.models import Post
-from .serializers import PostSerializer, CommentSerializer, PostAttachmentSerializer,PostCreateSerializer
+from posts.models import Like, Post
+from .serializers import PostSerializer, CommentSerializer,PostLikeSerializer ,PostCreateSerializer
 from rest_framework.views import APIView
 from core.responses import CustomResponse
 
@@ -75,3 +75,65 @@ class PostUpdateAPIView(generics.UpdateAPIView):
             status=status.HTTP_200_OK,
             message="Post updated successfully",
         )
+
+
+class PostLikeAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+            serializer = PostLikeSerializer(post, context={"request": request})
+
+            # Check if a Like by this user already exists
+            like = post.likes.filter(created_by=request.user).first()
+
+            if not like:
+                # Create a Like object
+                like = Like.objects.create(created_by=request.user)
+                post.likes.add(like)
+                post.likes_count += 1
+                post.save()
+
+                return CustomResponse(
+                    data=serializer.data,
+                    status=status.HTTP_200_OK,
+                    message="Post liked successfully",
+                )
+            else:
+                # Unlike: remove the Like object
+                post.likes.remove(like)
+                like.delete()
+                post.likes_count -= 1
+                post.save()
+
+                return CustomResponse(
+                    data=serializer.data,
+                    status=status.HTTP_200_OK,
+                    message="Post unliked successfully",
+                )
+
+        except Post.DoesNotExist:
+            return CustomResponse(
+                status=status.HTTP_404_NOT_FOUND, message="Post not found"
+            )
+
+class AddCommentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            post = Post.objects.get(pk=pk)
+        except Post.DoesNotExist:
+            return CustomResponse(
+                data={},
+                message="Post not found",
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = CommentSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save(post=post)
+            return CustomResponse(data=serializer.data,message="Comment added successfully" ,status=status.HTTP_201_CREATED)
+
+        return CustomResponse(data={},message=serializer.errors, status=status.HTTP_400_BAD_REQUEST)

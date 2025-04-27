@@ -19,16 +19,45 @@ class PostAttachmentSerializer(serializers.ModelSerializer):
         fields = ("id", "image", "video", "created_by", "created_at", "updated_at")
 
 class CommentSerializer(serializers.ModelSerializer):
-    created_by = SampleUserData(read_only=True)
+    replies = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ("id", "created_by", "content", "created_at", "updated_at")
+        fields = [
+            'id',
+            'created_by',
+            'post',
+            'parent',
+            'content',
+            'time_since_created',
+            'time_since_updated',
+            'replies'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+
+    def get_replies(self, obj):
+        replies = obj.replies.all()  # Get all replies (children)
+        return CommentSerializer(replies, many=True).data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        validated_data['created_by'] = user
+        return super().create(validated_data)
+
+class PostLikeSerializer(serializers.ModelSerializer):
+    created_by = SampleUserData(read_only=True)
+
+    class Meta:
+        model = Like
+        fields = ("id", "created_by", "time_since_created","time_since_updated")
+
 
 class PostSerializer(serializers.ModelSerializer):
     attachments = PostAttachmentSerializer(many=True)
     created_by = SampleUserData(read_only=True)
-    comments = CommentSerializer(many=True, read_only=True)
+    likes = PostLikeSerializer(many=True, read_only=True)
+    comments = serializers.SerializerMethodField()
+    comments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -45,6 +74,13 @@ class PostSerializer(serializers.ModelSerializer):
             "time_since_created",
             "time_since_updated",
         )
+
+    def get_comments(self, obj):
+        comments = obj.comments.filter(parent=None)  # Only top-level comments
+        return CommentSerializer(comments, many=True).data
+
+    def get_comments_count(self, obj):
+        return obj.comments.count()
 
 
 class PostCreateAttachmentSerializer(serializers.ModelSerializer):
@@ -108,4 +144,3 @@ class PostCreateSerializer(serializers.ModelSerializer):
                 instance.attachments.add(attachment)
 
         return instance
-
