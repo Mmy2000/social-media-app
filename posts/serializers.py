@@ -34,6 +34,7 @@ class CommentLikeSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    created_by = SampleUserData(read_only=True)
     replies = serializers.SerializerMethodField()
     like_count = serializers.SerializerMethodField()
     likes = serializers.SerializerMethodField()
@@ -127,7 +128,7 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_comments(self, obj):
         comments = obj.comments.filter(parent=None)  # Only top-level comments
-        return CommentSerializer(comments, many=True).data
+        return CommentSerializer(comments, many=True, context=self.context).data
 
     def get_comments_count(self, obj):
         return obj.comments.count()
