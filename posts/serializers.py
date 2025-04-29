@@ -10,9 +10,8 @@ class SampleUserProfileData(serializers.ModelSerializer):
 
     def get_profile_picture(self, obj):
         request = self.context.get("request")
-        if obj.profile_picture:
-            return request.build_absolute_uri(obj.profile_picture.url)
-        return None
+        url = obj.get_profile_picture
+        return request.build_absolute_uri(url) if request else url
 
 class SampleUserData(serializers.ModelSerializer):
     profile = SampleUserProfileData(source="userprofile", read_only=True)

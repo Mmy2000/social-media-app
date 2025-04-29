@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.timesince import timesince
 from accounts.models import User
+import uuid
 
 # Create your models here.
 
