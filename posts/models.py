@@ -6,6 +6,26 @@ from accounts.models import User
 
 class Like(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(
+        "Post", on_delete=models.CASCADE, related_name="likes", blank=True, null=True
+    )  # Connect to Post
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def time_since_created(self):
+        return timesince(self.created_at) + " ago"
+
+    @property
+    def time_since_updated(self):
+        return timesince(self.updated_at) + " ago"
+
+    def __str__(self):
+        return f"Like by {self.created_by.username} on {self.created_at}"
+
+class CommentLike(models.Model):
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.ForeignKey('Comment', on_delete=models.CASCADE, related_name='likes')  # Connect to Comment
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -18,8 +38,7 @@ class Like(models.Model):
         return timesince(self.updated_at) + " ago"
 
     def __str__(self):
-        return f"Like by {self.created_by.username} on {self.created_at}"
-    
+        return f"Comment Like by {self.created_by.username} on {self.created_at}"
 
 class Comment(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -68,8 +87,6 @@ class Post(models.Model):
     )
 
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    likes = models.ManyToManyField(Like, blank=True)
-    likes_count = models.IntegerField(default=0)
     content = models.TextField(blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE, default="public")
     attachments = models.ManyToManyField(PostAttachment, blank=True)

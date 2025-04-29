@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PostView,PostDetailView, PostCreateAPIView, PostUpdateAPIView, PostLikeAPIView, AddCommentView, UpdateCommentView, DeleteCommentView
+from .views import PostView,PostDetailView, PostCreateAPIView, PostUpdateAPIView, PostLikeAPIView, AddCommentView, UpdateCommentView, DeleteCommentView, CommentLikeAPIView
 urlpatterns = [
     path(
         "", PostView.as_view(), name="post-list-create"
@@ -29,4 +29,9 @@ urlpatterns = [
         DeleteCommentView.as_view(),
         name="delete-comment",
     ),  # for deleting a specific comment
+    path(
+        "comment/<int:pk>/like/",
+        CommentLikeAPIView.as_view(),
+        name="like-comment",
+    ),  # for liking a specific comment
 ]

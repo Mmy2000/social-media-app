@@ -1,11 +1,18 @@
-from .models import Post, Comment, Like, PostAttachment
+from .models import CommentLike, Post, Comment, Like, PostAttachment
 from rest_framework import serializers
 from accounts.models import User, UserProfile
 
 class SampleUserProfileData(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
     class Meta:
         model = UserProfile
         fields = ["full_name","profile_picture"]
+
+    def get_profile_picture(self, obj):
+        request = self.context.get("request")
+        if obj.profile_picture:
+            return request.build_absolute_uri(obj.profile_picture.url)
+        return None
 
 class SampleUserData(serializers.ModelSerializer):
     profile = SampleUserProfileData(source="userprofile", read_only=True)
@@ -18,31 +25,74 @@ class PostAttachmentSerializer(serializers.ModelSerializer):
         model = PostAttachment
         fields = ("id", "image", "video", "created_by", "created_at", "updated_at")
 
+
+class CommentLikeSerializer(serializers.ModelSerializer):
+    created_by = SampleUserData(read_only=True)
+    class Meta:
+        model = CommentLike
+        fields = ("id", "created_by", "comment", "created_at")
+        read_only_fields = ("id", "created_by", "created_at")
+
+
 class CommentSerializer(serializers.ModelSerializer):
     replies = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = [
-            'id',
-            'created_by',
-            'post',
-            'parent',
-            'content',
-            'time_since_created',
-            'time_since_updated',
-            'replies'
+            "id",
+            "created_by",
+            "post",
+            "parent",
+            "content",
+            "time_since_created",
+            "time_since_updated",
+            "replies",
+            "likes",  # <-- Add likes field (optional)
+            "like_count",  # <-- Add like_count field (optional)
         ]
-        read_only_fields = ['id', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
 
     def get_replies(self, obj):
         replies = obj.replies.all()  # Get all replies (children)
-        return CommentSerializer(replies, many=True).data
+        return CommentSerializer(replies, many=True, context=self.context).data
+
+    def get_like_count(self, obj):
+        return obj.likes.count()
+
+    def get_likes(self, obj):
+        likes = obj.likes.select_related('created_by', 'created_by__userprofile')  # Avoid N+1 queries
+        data = []
+
+        for like in likes:
+            user = like.created_by
+            profile_picture_url = None
+            request = self.context.get("request")
+
+            if hasattr(user, 'userprofile') and user.userprofile.profile_picture:
+                profile_picture_url = request.build_absolute_uri(
+                    user.userprofile.get_profile_picture
+                )
+
+            else:
+                # fallback if no profile or no picture
+                profile_picture_url = "/static/default_images/default_profile_picture.jpg"
+                profile_picture_url = request.build_absolute_uri(profile_picture_url)
+
+            data.append({
+                "username": user.username,
+                "image": profile_picture_url,
+            })
+
+        return data
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        validated_data['created_by'] = user
+        user = self.context["request"].user
+        validated_data["created_by"] = user
         return super().create(validated_data)
+
 
 class PostLikeSerializer(serializers.ModelSerializer):
     created_by = SampleUserData(read_only=True)
@@ -55,7 +105,8 @@ class PostLikeSerializer(serializers.ModelSerializer):
 class PostSerializer(serializers.ModelSerializer):
     attachments = PostAttachmentSerializer(many=True)
     created_by = SampleUserData(read_only=True)
-    likes = PostLikeSerializer(many=True, read_only=True)
+    likes = serializers.SerializerMethodField()
+    like_count = serializers.SerializerMethodField()
     comments = serializers.SerializerMethodField()
     comments_count = serializers.SerializerMethodField()
 
@@ -65,7 +116,7 @@ class PostSerializer(serializers.ModelSerializer):
             "id",
             "created_by",
             "likes",
-            "likes_count",
+            "like_count",
             "comments",
             "comments_count",
             "content",
@@ -81,6 +132,33 @@ class PostSerializer(serializers.ModelSerializer):
 
     def get_comments_count(self, obj):
         return obj.comments.count()
+
+    def get_likes(self, obj):
+        likes = obj.likes.select_related('created_by', 'created_by__userprofile')
+        data = []
+        request = self.context.get("request")
+
+        for like in likes:
+            user = like.created_by
+            profile_picture_url = None
+
+            if hasattr(user, 'userprofile') and user.userprofile.profile_picture:
+                profile_picture_url = request.build_absolute_uri(
+                    user.userprofile.get_profile_picture
+                )
+            else:
+                # fallback if no profile or no picture
+                profile_picture_url = "/static/default_images/default_profile_picture.jpg"
+                profile_picture_url = request.build_absolute_uri(profile_picture_url)
+
+            data.append({
+                "username": user.username,
+                "image": profile_picture_url,
+            })
+        return data
+
+    def get_like_count(self, obj):
+        return obj.likes.count()
 
 
 class PostCreateAttachmentSerializer(serializers.ModelSerializer):

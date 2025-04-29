@@ -1,5 +1,5 @@
 from rest_framework import status, generics, permissions
-from posts.models import Comment, Like, Post
+from posts.models import Comment, CommentLike, Like, Post
 from .serializers import PostSerializer, CommentSerializer,PostLikeSerializer ,PostCreateSerializer
 from rest_framework.views import APIView
 from core.responses import CustomResponse
@@ -90,10 +90,7 @@ class PostLikeAPIView(APIView):
 
             if not like:
                 # Create a Like object
-                like = Like.objects.create(created_by=request.user)
-                post.likes.add(like)
-                post.likes_count += 1
-                post.save()
+                Like.objects.create(created_by=request.user, post=post)
 
                 return CustomResponse(
                     data=serializer.data,
@@ -101,11 +98,8 @@ class PostLikeAPIView(APIView):
                     message="Post liked successfully",
                 )
             else:
-                # Unlike: remove the Like object
-                post.likes.remove(like)
+                # Unlike: just delete the Like object
                 like.delete()
-                post.likes_count -= 1
-                post.save()
 
                 return CustomResponse(
                     data=serializer.data,
@@ -115,7 +109,8 @@ class PostLikeAPIView(APIView):
 
         except Post.DoesNotExist:
             return CustomResponse(
-                status=status.HTTP_404_NOT_FOUND, message="Post not found"
+                status=status.HTTP_404_NOT_FOUND,
+                message="Post not found",
             )
 
 class AddCommentView(APIView):
@@ -138,6 +133,44 @@ class AddCommentView(APIView):
 
         return CustomResponse(data={},message=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+class CommentLikeAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            comment = Comment.objects.get(pk=pk)
+            serializer = PostLikeSerializer(comment, context={"request": request})
+
+            # Check if a Like by this user already exists
+            like = comment.likes.filter(created_by=request.user).first()
+
+            if not like:
+                # Create a Like object
+                CommentLike.objects.create(created_by=request.user, comment=comment)
+
+                return CustomResponse(
+                    data=serializer.data,
+                    status=status.HTTP_200_OK,
+                    message="Comment liked successfully",
+                )
+            else:
+                # Unlike: just delete the Like object
+                like.delete()
+
+                return CustomResponse(
+                    data=serializer.data,
+                    status=status.HTTP_200_OK,
+                    message="Comment unliked successfully",
+                )
+
+        except Comment.DoesNotExist:
+            return CustomResponse(
+                status=status.HTTP_404_NOT_FOUND,
+                message="Comment not found",
+            )
+
+
 class UpdateCommentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -157,7 +190,7 @@ class UpdateCommentView(APIView):
             return CustomResponse(data=serializer.data,message="Comment updated successfully" ,status=status.HTTP_200_OK)
 
         return CustomResponse(data={},message=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
 class DeleteCommentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
