@@ -4,8 +4,8 @@ from rest_framework.views import APIView
 from accounts.models import UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from posts.models import Post
-from posts.serializers import PostSerializer
+from posts.models import Post, PostAttachment
+from posts.serializers import PostAttachmentSerializer, PostSerializer
 from .serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
@@ -306,16 +306,20 @@ class ProfileView(APIView):
         if request.user.is_authenticated and request.user.id == user_id:
             is_owner = True
             posts = Post.objects.filter(created_by=user).order_by("-created_at")
-
         else:
             posts = Post.objects.filter(created_by=user, role="public").order_by(
                 "-created_at"
             )
+
+        photos = PostAttachment.objects.filter(post__in=posts, image__isnull=False).order_by("-created_at")
         # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
 
         posts = PostSerializer(posts, many=True, context={"request": request}).data
         followers = ''
         friends = ''
+        photos = PostAttachmentSerializer(
+            photos, many=True, context={"request": request}
+        ).data
 
         return CustomResponse(
             data={
@@ -323,6 +327,7 @@ class ProfileView(APIView):
                 "posts": posts,
                 "followers": followers,
                 "friends": friends,
+                "photos": photos,
                 "is_owner": is_owner
             },
             message=_("User profile retrieved successfully"),
