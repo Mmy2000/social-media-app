@@ -82,6 +82,7 @@ class CommentSerializer(serializers.ModelSerializer):
                 profile_picture_url = request.build_absolute_uri(profile_picture_url)
 
             data.append({
+                "id": user.id,
                 "username": user.username,
                 "image": profile_picture_url,
             })
@@ -152,6 +153,7 @@ class PostSerializer(serializers.ModelSerializer):
                 profile_picture_url = request.build_absolute_uri(profile_picture_url)
 
             data.append({
+                "id": user.id,
                 "username": user.username,
                 "image": profile_picture_url,
             })
@@ -183,6 +185,9 @@ class PostCreateSerializer(serializers.ModelSerializer):
             role=validated_data.get("role"),
             created_by=request.user,  # directly use request.user
         )
+        print("role", validated_data.get("role"))
+        print("content", validated_data.get("content"))
+        print("attachments", files)
 
         for file in files:
             attachment = PostAttachment.objects.create(

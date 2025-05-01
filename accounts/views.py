@@ -307,11 +307,12 @@ class ProfileView(APIView):
             is_owner = True
             posts = Post.objects.filter(created_by=user).order_by("-created_at")
 
+        else:
+            posts = Post.objects.filter(created_by=user, role="public").order_by(
+                "-created_at"
+            )
         # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
 
-        posts = Post.objects.filter(created_by=user, role="public").order_by(
-            "-created_at"
-        )
         posts = PostSerializer(posts, many=True, context={"request": request}).data
         followers = ''
         friends = ''

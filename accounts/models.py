@@ -90,6 +90,8 @@ class UserProfile(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
     marital_status = models.CharField(max_length=20, blank=True, null=True)
     phone_number = models.CharField(max_length=50,null=True, blank=True)
+    work = models.CharField(max_length=50, blank=True, null=True)
+    education = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField("created_at", default=timezone.now)
     updated_at = models.DateTimeField( auto_now=True)
 

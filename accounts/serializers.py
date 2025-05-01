@@ -71,6 +71,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "bio",
             "profile_picture",
             "cover_picture",
+            "work",
+            "education",
         ]
 
     def get_profile_picture(self, obj):
@@ -89,7 +91,17 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'username','source','is_active','profile']
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "username",
+            "source",
+            "is_active",
+            "profile",
+            "date_joined",
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):
