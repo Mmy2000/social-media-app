@@ -22,7 +22,7 @@ class SampleUserData(serializers.ModelSerializer):
 class PostAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostAttachment
-        fields = ("id", "image", "video", "created_by", "created_at", "updated_at")
+        fields = ("id", "image", "created_by", "created_at", "updated_at")
 
 
 class CommentLikeSerializer(serializers.ModelSerializer):
@@ -166,7 +166,7 @@ class PostSerializer(serializers.ModelSerializer):
 class PostCreateAttachmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = PostAttachment
-        fields = ["id", "image", "video"]
+        fields = ["id", "image"]
 
 
 class PostCreateSerializer(serializers.ModelSerializer):

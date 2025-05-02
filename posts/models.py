@@ -1,9 +1,21 @@
+import os
 from django.db import models
 from django.utils.timesince import timesince
 from accounts.models import User
 import uuid
+from django.core.exceptions import ValidationError
+
 
 # Create your models here.
+
+
+def validate_svg_or_image(value):
+    ext = os.path.splitext(value.name)[1].lower()
+    allowed_extensions = [".jpg", ".jpeg", ".png", ".gif", ".svg"]
+
+    if ext not in allowed_extensions:
+        raise ValidationError("Only JPG, PNG, GIF, and SVG files are allowed.")
+
 
 class Like(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -71,8 +83,9 @@ class Comment(models.Model):
 
 
 class PostAttachment(models.Model):
-    image = models.ImageField(upload_to="posts/attachments")
-    video = models.FileField(upload_to="posts/videos", blank=True, null=True)
+    image = models.FileField(
+        validators=[validate_svg_or_image], upload_to="posts/attachments"
+    )
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
