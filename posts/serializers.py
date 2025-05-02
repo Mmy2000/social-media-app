@@ -185,9 +185,6 @@ class PostCreateSerializer(serializers.ModelSerializer):
             role=validated_data.get("role"),
             created_by=request.user,  # directly use request.user
         )
-        print("role", validated_data.get("role"))
-        print("content", validated_data.get("content"))
-        print("attachments", files)
 
         for file in files:
             attachment = PostAttachment.objects.create(
@@ -205,25 +202,31 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         request = self.context.get('request')
-        files = request.FILES.getlist('attachments')  # get uploaded files
+        files = request.FILES.getlist('attachments')
+
+        # Support optional `existing_attachments` field
+        existing_ids = request.data.getlist("existing_attachments")
+        print("existing_attachments", existing_ids)
 
         instance.content = validated_data.get('content', instance.content)
         instance.role = validated_data.get('role', instance.role)
         instance.save()
 
-        if files:
-            # Always clear old attachments if new files are uploaded
-            instance.attachments.all().delete()  # delete attachment objects (optional: also delete files from storage)
+        # Delete only the attachments that are not retained
+        retained_ids = set(existing_ids)
+        for attachment in instance.attachments.all():
+            if str(attachment.id) not in retained_ids:
+                attachment.delete()
 
-            for file in files:
-                attachment = PostAttachment.objects.create(
-                    created_by=instance.created_by,
-                )
-                if file.content_type.startswith('image/'):
-                    attachment.image = file
-                elif file.content_type.startswith('video/'):
-                    attachment.video = file
-                attachment.save()
-                instance.attachments.add(attachment)
+        # Add new uploaded files
+        for file in files:
+            attachment = PostAttachment.objects.create(created_by=instance.created_by)
+            if file.content_type.startswith('image/'):
+                attachment.image = file
+            elif file.content_type.startswith('video/'):
+                attachment.video = file
+            attachment.save()
+            instance.attachments.add(attachment)
 
         return instance
+

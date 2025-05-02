@@ -30,7 +30,7 @@ class PostDetailView(APIView):
             return CustomResponse(
                 data=None,
                 status=status.HTTP_401_UNAUTHORIZED,
-                message="Authentication required to create a post",
+                message="Authentication required to delete a post",
             )
         try:
             post = Post.objects.get(pk=pk)
