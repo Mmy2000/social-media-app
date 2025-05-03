@@ -122,6 +122,7 @@ class PostSerializer(serializers.ModelSerializer):
             "comments_count",
             "content",
             "role",
+            "feeling",
             "attachments",
             "time_since_created",
             "time_since_updated",
@@ -174,7 +175,7 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Post
-        fields = ["id", "content", "role", "attachments"]
+        fields = ["id", "content","feeling" ,"role", "attachments"]
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -183,6 +184,7 @@ class PostCreateSerializer(serializers.ModelSerializer):
         post = Post.objects.create(
             content=validated_data.get("content"),
             role=validated_data.get("role"),
+            feeling = validated_data.get("feeling"),
             created_by=request.user,  # directly use request.user
         )
 
@@ -210,6 +212,7 @@ class PostCreateSerializer(serializers.ModelSerializer):
 
         instance.content = validated_data.get('content', instance.content)
         instance.role = validated_data.get('role', instance.role)
+        instance.feeling = validated_data.get("feeling", instance.feeling)
         instance.save()
 
         # Delete only the attachments that are not retained
@@ -229,4 +232,3 @@ class PostCreateSerializer(serializers.ModelSerializer):
             instance.attachments.add(attachment)
 
         return instance
-

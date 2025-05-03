@@ -103,6 +103,7 @@ class Post(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE, default="public")
+    feeling = models.CharField(max_length=10,null=True,blank=True)
     attachments = models.ManyToManyField(PostAttachment, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
