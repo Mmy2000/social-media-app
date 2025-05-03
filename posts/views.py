@@ -1,6 +1,6 @@
 from rest_framework import status, generics, permissions
 from posts.models import Comment, CommentLike, Like, Post
-from .serializers import PostSerializer, CommentSerializer,PostLikeSerializer ,PostCreateSerializer
+from .serializers import PostSerializer, CommentSerializer,PostLikeSerializer ,PostCreateSerializer, SharePostSerializer
 from rest_framework.views import APIView
 from core.responses import CustomResponse
 
@@ -201,3 +201,18 @@ class DeleteCommentView(APIView):
             return CustomResponse(data={},message="Comment deleted successfully" ,status=status.HTTP_200_OK)
         except Comment.DoesNotExist:
             return CustomResponse(data={},message="Comment not found", status=status.HTTP_404_NOT_FOUND)
+
+
+class SharePostView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = SharePostSerializer(data=request.data, context={"request": request})
+        if serializer.is_valid():
+            post = serializer.save()
+            posts = Post.objects.all()
+            posts = PostSerializer(posts, many=True, context={"request": request})
+            return CustomResponse(data=posts.data, 
+            message="Post shared successfully",
+            status=status.HTTP_201_CREATED)
+        return CustomResponse(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)

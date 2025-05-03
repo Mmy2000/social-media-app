@@ -1,9 +1,7 @@
 from django.urls import path
-from .views import PostView,PostDetailView, PostCreateAPIView, PostUpdateAPIView, PostLikeAPIView, AddCommentView, UpdateCommentView, DeleteCommentView, CommentLikeAPIView
+from .views import PostView,PostDetailView, PostCreateAPIView, PostUpdateAPIView, PostLikeAPIView, AddCommentView, SharePostView, UpdateCommentView, DeleteCommentView, CommentLikeAPIView
 urlpatterns = [
-    path(
-        "", PostView.as_view(), name="post-list-create"
-    ),  # for GET (list)
+    path("", PostView.as_view(), name="post-list-create"),  # for GET (list)
     path(
         "<int:pk>/", PostDetailView.as_view(), name="post-detail"
     ),  # for GET, DELETE a specific post
@@ -34,4 +32,5 @@ urlpatterns = [
         CommentLikeAPIView.as_view(),
         name="like-comment",
     ),  # for liking a specific comment
+    path("share/", SharePostView.as_view(), name="share-post"),
 ]

@@ -93,8 +93,8 @@ class PostAttachment(models.Model):
     def __str__(self):
         return f"Attachment by {self.created_by.username} on {self.created_at}"
 
-class Post(models.Model):
 
+class Post(models.Model):
     ROLE = (
         ("only_me", "only_me"),
         ("public", "public"),
@@ -103,8 +103,15 @@ class Post(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)
     role = models.CharField(max_length=10, choices=ROLE, default="public")
-    feeling = models.CharField(max_length=10,null=True,blank=True)
+    feeling = models.CharField(max_length=10, null=True, blank=True)
     attachments = models.ManyToManyField(PostAttachment, blank=True)
+    shared_from = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="shared_posts",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -114,7 +121,7 @@ class Post(models.Model):
     @property
     def time_since_created(self):
         return timesince(self.created_at) + " ago"
-    
+
     @property
     def time_since_updated(self):
         return timesince(self.updated_at) + " ago"
