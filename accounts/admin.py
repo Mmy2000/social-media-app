@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import User, UserProfile
+from .models import User, UserProfile, FriendshipRequest
 from django.contrib.auth.admin import UserAdmin
 
 
@@ -38,3 +38,4 @@ class AccountAdmin(UserAdmin):
 
 admin.site.register(User, AccountAdmin)
 admin.site.register(UserProfile)
+admin.site.register(FriendshipRequest)

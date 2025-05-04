@@ -1,7 +1,7 @@
 import random
 from rest_framework import status
 from rest_framework.views import APIView
-from accounts.models import UserProfile
+from accounts.models import FriendshipRequest, UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from posts.models import Post, PostAttachment
@@ -9,6 +9,9 @@ from posts.serializers import PostAttachmentSerializer, PostSerializer
 from .serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
+    FriendSerializer,
+    FriendshipRequestSerializer,
+    FriendshipRequestUpdateSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
     UserProfileUpdate,
@@ -24,6 +27,7 @@ from rest_framework import status, generics
 from django.utils.translation import gettext as _
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 
 User = get_user_model()
 
@@ -315,8 +319,12 @@ class ProfileView(APIView):
         # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
 
         posts = PostSerializer(posts, many=True, context={"request": request}).data
-        followers = ''
-        friends = ''
+        followers_count = 1
+        friends_qs = user.friends.all()
+        friends_data = FriendSerializer(
+            friends_qs, many=True, context={"request": request}
+        ).data
+        friends = {"count": friends_qs.count(), "users": friends_data}
         photos = PostAttachmentSerializer(
             photos, many=True, context={"request": request}
         ).data
@@ -325,10 +333,10 @@ class ProfileView(APIView):
             data={
                 "user_data": serializer.data,
                 "posts": posts,
-                "followers": followers,
+                "followers_count": followers_count,
                 "friends": friends,
                 "photos": photos,
-                "is_owner": is_owner
+                "is_owner": is_owner,
             },
             message=_("User profile retrieved successfully"),
             status=status.HTTP_200_OK,
@@ -359,3 +367,87 @@ class ProfileUpdateView(APIView):
             message=_("Failed to update profile"),
             status=status.HTTP_400_BAD_REQUEST
         )
+
+
+class SendFriendRequestView(generics.CreateAPIView):
+    serializer_class = FriendshipRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return CustomResponse(
+                data=serializer.data,
+                message="Friend request sent successfully.",
+                status=status.HTTP_201_CREATED,
+            )
+        return CustomResponse(
+            data=serializer.errors, status=status.HTTP_400_BAD_REQUEST
+        )
+
+class UpdateFriendRequestView(generics.UpdateAPIView):
+    queryset = FriendshipRequest.objects.all()
+    serializer_class = FriendshipRequestUpdateSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        obj = super().get_object()
+        if obj.created_for != self.request.user:
+            raise PermissionDenied("You are not allowed to modify this request.")
+        return obj
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        if instance.status in ["accepted", "rejected"]:
+            return CustomResponse(
+                data={},
+                message="This friend request has already been processed.",
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return CustomResponse(
+                data=serializer.data,
+                message="Friend request updated successfully.",
+                status=status.HTTP_200_OK
+            )
+        return CustomResponse(data=serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UnfriendView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, friend_id):
+        user = request.user
+
+        try:
+            friend = User.objects.get(id=friend_id)
+            print(friend)
+        except User.DoesNotExist:
+            return CustomResponse(message="User not found.", status=status.HTTP_404_NOT_FOUND)
+
+        if friend in user.friends.all():
+            user.friends.remove(friend)
+            friend.friends.remove(user)  # Mutual removal
+
+            # Optional: update friends_count if you're manually tracking it
+            user.friends_count = user.friends.count()
+            friend.friends_count = friend.friends.count()
+            user.save()
+            friend.save()
+
+            return CustomResponse(
+                message="Friend removed successfully.",
+                status=status.HTTP_204_NO_CONTENT
+            )
+        else:
+            return CustomResponse(
+                message="You are not friends with this user.",
+                status=status.HTTP_400_BAD_REQUEST
+            )

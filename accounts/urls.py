@@ -11,6 +11,9 @@ from .views import (
     SocialLoginView,
     ProfileView,
     ProfileUpdateView,
+    SendFriendRequestView,
+    UnfriendView,
+    UpdateFriendRequestView
 )
 
 urlpatterns = [
@@ -25,4 +28,7 @@ urlpatterns = [
     path("logout/", LogoutView.as_view(), name="logout"),
     path("profile/<int:user_id>/", ProfileView.as_view(), name="profile"),
     path("update_profile/", ProfileUpdateView.as_view(), name="update_profile"),
+    path('friend-request/send/', SendFriendRequestView.as_view(), name='send-friend-request'),
+    path('friend-request/<int:pk>/update/', UpdateFriendRequestView.as_view(), name='update-friend-request'),
+    path("friends/remove/<int:friend_id>/", UnfriendView.as_view(), name="unfriend"),
 ]

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, UserProfile
+from .models import User, UserProfile,FriendshipRequest
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -205,3 +205,80 @@ class SocialLoginSerializer(serializers.Serializer):
         }
 
         return user, created, tokens
+
+
+class FriendshipRequestSerializer(serializers.ModelSerializer):
+    created_by = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = FriendshipRequest
+        fields = ['id', 'created_by', 'created_for', 'status']
+        read_only_fields = ['status']
+
+    def validate(self, attrs):
+        created_by = self.context['request'].user
+        created_for = attrs.get('created_for')
+
+        if created_by == created_for:
+            raise serializers.ValidationError("You cannot send a friend request to yourself.")
+        
+        if created_for in created_by.friends.all():
+            raise serializers.ValidationError("You are already friends with this user.")
+
+        if FriendshipRequest.objects.filter(
+            created_by=created_by, created_for=created_for, status=FriendshipRequest.SENT
+        ).exists():
+            raise serializers.ValidationError("Friend request already sent.")
+
+        return attrs
+
+class FriendshipRequestUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FriendshipRequest
+        fields = ['status']
+
+    def validate_status(self, value):
+        if value not in [FriendshipRequest.ACCEPTED, FriendshipRequest.REJECTED]:
+            raise serializers.ValidationError("Invalid status update.")
+        return value
+
+    def update(self, instance, validated_data):
+        new_status = validated_data['status']
+        if new_status == FriendshipRequest.ACCEPTED:
+            # Add each user to the other's friend list
+            instance.created_by.friends.add(instance.created_for)
+            instance.created_for.friends.add(instance.created_by)
+
+            # Update friend counts
+            instance.created_by.friends_count = instance.created_by.friends.count()
+            instance.created_for.friends_count = instance.created_for.friends.count()
+            instance.created_by.save()
+            instance.created_for.save()
+
+        instance.status = new_status
+        instance.save()
+        return instance
+
+class ProfileFriends(serializers.ModelSerializer):
+    profile_picture = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            "id",
+            "full_name",
+            "profile_picture",
+        ]
+
+    def get_profile_picture(self, obj):
+        request = self.context.get("request")
+        url = obj.get_profile_picture
+        return request.build_absolute_uri(url) if request else url
+
+
+class FriendSerializer(serializers.ModelSerializer):
+    profile = ProfileFriends(source="userprofile", read_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "first_name", "last_name", "profile"]
