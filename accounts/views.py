@@ -308,36 +308,41 @@ class ProfileView(APIView):
 
         # Safely determine if the authenticated user is the profile owner
         is_owner = False
-        if request.user.is_authenticated and request.user.id == user_id:
-            is_owner = True
-            posts = Post.objects.filter(created_by=user).order_by("-created_at")
+        is_friend = False  # <--- initialize
+
+        if request.user.is_authenticated:
+            if request.user.id == user_id:
+                is_owner = True
+                posts = Post.objects.filter(created_by=user).order_by("-created_at")
+            else:
+                posts = Post.objects.filter(created_by=user, role="public").order_by("-created_at")
+                # Check if authenticated user is a friend of the target user
+                is_friend = user.friends.filter(id=request.user.id).exists()
         else:
-            posts = Post.objects.filter(created_by=user, role="public").order_by(
-                "-created_at"
-            )
+            posts = Post.objects.filter(created_by=user, role="public").order_by("-created_at")
 
         photos = PostAttachment.objects.filter(post__in=posts, image__isnull=False).order_by("-created_at")
-        # print(f"Authenticated: {request.user.is_authenticated}, Request ID: {request.user.id}, Target ID: {user_id}, is_owner: {is_owner}")
 
         posts = PostSerializer(posts, many=True, context={"request": request}).data
         followers_count = 1
         friends_qs = user.friends.all()
-        friends_data = FriendSerializer(
-            friends_qs, many=True, context={"request": request}
-        ).data
+        friends_data = FriendSerializer(friends_qs, many=True, context={"request": request}).data
         friends = {"count": friends_qs.count(), "users": friends_data}
-        photos = PostAttachmentSerializer(
-            photos, many=True, context={"request": request}
-        ).data
+        followers = {
+            "count":followers_count,
+            "follwers_data": {}
+        }
+        photos = PostAttachmentSerializer(photos, many=True, context={"request": request}).data
 
         return CustomResponse(
             data={
                 "user_data": serializer.data,
                 "posts": posts,
-                "followers_count": followers_count,
+                "followers": followers,
                 "friends": friends,
                 "photos": photos,
                 "is_owner": is_owner,
+                "is_friend": is_friend,  # <--- include in response
             },
             message=_("User profile retrieved successfully"),
             status=status.HTTP_200_OK,
@@ -459,7 +464,7 @@ class FriendsListView(APIView):
     def get(self, request):
         user = request.user
         friends = user.friends.all()
-        serializer = FriendSerializer(friends, many=True)
+        serializer = FriendSerializer(friends, many=True,context={'request': request})
         return CustomResponse(
             data=serializer.data,
             message="Friend retrieved successfully.",
@@ -471,7 +476,7 @@ class FriendRequestsView(APIView):
 
     def get(self, request):
         user = request.user
-        requests = FriendshipRequest.objects.filter(created_for=user)
+        requests = FriendshipRequest.objects.filter(created_for=user,status="sent")
         serializer = FriendshipRequestSerializerSample(
             requests, many=True, context={"request": request}
         )
