@@ -11,6 +11,7 @@ from .serializers import (
     ForgotPasswordSerializer,
     FriendSerializer,
     FriendshipRequestSerializer,
+    FriendshipRequestSerializerSample,
     FriendshipRequestUpdateSerializer,
     RegisterSerializer,
     ResetPasswordSerializer,
@@ -451,3 +452,32 @@ class UnfriendView(APIView):
                 message="You are not friends with this user.",
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+class FriendsListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        friends = user.friends.all()
+        serializer = FriendSerializer(friends, many=True)
+        return CustomResponse(
+            data=serializer.data,
+            message="Friend retrieved successfully.",
+            status=status.HTTP_200_OK,
+        )
+
+class FriendRequestsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        requests = FriendshipRequest.objects.filter(created_for=user)
+        serializer = FriendshipRequestSerializerSample(
+            requests, many=True, context={"request": request}
+        )
+
+        return CustomResponse(
+            data=serializer.data,
+            message="Friend Requests retrieved successfully.",
+            status=status.HTTP_200_OK,
+        )

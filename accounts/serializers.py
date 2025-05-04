@@ -232,6 +232,7 @@ class FriendshipRequestSerializer(serializers.ModelSerializer):
 
         return attrs
 
+
 class FriendshipRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FriendshipRequest
@@ -282,3 +283,13 @@ class FriendSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "username", "first_name", "last_name", "profile"]
+
+
+class FriendshipRequestSerializerSample(serializers.ModelSerializer):
+
+    created_by = FriendSerializer()
+    created_for = FriendSerializer()
+
+    class Meta:
+        model = FriendshipRequest
+        fields = ["id", "created_by", "created_for", "status"]

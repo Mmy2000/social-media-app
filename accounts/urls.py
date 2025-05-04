@@ -13,7 +13,9 @@ from .views import (
     ProfileUpdateView,
     SendFriendRequestView,
     UnfriendView,
-    UpdateFriendRequestView
+    UpdateFriendRequestView,
+    FriendsListView,
+    FriendRequestsView
 )
 
 urlpatterns = [
@@ -31,4 +33,6 @@ urlpatterns = [
     path('friend-request/send/', SendFriendRequestView.as_view(), name='send-friend-request'),
     path('friend-request/<int:pk>/update/', UpdateFriendRequestView.as_view(), name='update-friend-request'),
     path("friends/remove/<int:friend_id>/", UnfriendView.as_view(), name="unfriend"),
+    path("friends/", FriendsListView.as_view(), name="friends"),
+    path("friends_requests/", FriendRequestsView.as_view(), name="friends_requests"),
 ]
