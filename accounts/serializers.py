@@ -286,10 +286,75 @@ class FriendSerializer(serializers.ModelSerializer):
 
 
 class FriendshipRequestSerializerSample(serializers.ModelSerializer):
-
     created_by = FriendSerializer()
     created_for = FriendSerializer()
+    mutual_friends = serializers.SerializerMethodField()
+    mutual_friends_count = serializers.SerializerMethodField()
 
     class Meta:
         model = FriendshipRequest
-        fields = ["id", "created_by", "created_for", "status"]
+        fields = [
+            "id",
+            "created_by",
+            "created_for",
+            "status",
+            "mutual_friends",
+            "mutual_friends_count",
+        ]
+
+    def get_mutual_friends(self, obj):
+        request_user = obj.created_for
+        requester = obj.created_by
+        mutuals = request_user.friends.filter(id__in=requester.friends.values_list("id", flat=True))
+        return FriendSerializer(mutuals, many=True, context=self.context).data
+
+    def get_mutual_friends_count(self, obj):
+        request_user = obj.created_for
+        requester = obj.created_by
+        return request_user.friends.filter(id__in=requester.friends.values_list("id", flat=True)).count()
+
+
+class FriendSuggestionsSerializer(serializers.ModelSerializer):
+    profile = ProfileFriends(source="userprofile", read_only=True)
+    mutual_friends = serializers.SerializerMethodField()
+    mutual_friends_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "profile",
+            "mutual_friends",
+            "mutual_friends_count",
+        ]
+
+    def get_mutual_friends(self, obj):
+        request = self.context.get("request")
+        current_user = request.user
+        current_user_friends = set(current_user.friends.all())
+        suggested_user_friends = set(obj.friends.all())
+        mutual = current_user_friends.intersection(suggested_user_friends)
+
+        return [
+            {
+                "id": friend.id,
+                "username": friend.username,
+                "full_name": friend.userprofile.full_name,
+                "profile_picture": (
+                    request.build_absolute_uri(friend.userprofile.get_profile_picture)
+                    if hasattr(friend, "userprofile")
+                    else None
+                ),
+            }
+            for friend in mutual
+        ]
+
+    def get_mutual_friends_count(self, obj):
+        current_user = self.context["request"].user
+        current_user_friends = set(current_user.friends.all())
+        suggested_user_friends = set(obj.friends.all())
+        mutual = current_user_friends.intersection(suggested_user_friends)
+        return len(mutual)

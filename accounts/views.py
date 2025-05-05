@@ -10,6 +10,7 @@ from .serializers import (
     ChangePasswordSerializer,
     ForgotPasswordSerializer,
     FriendSerializer,
+    FriendSuggestionsSerializer,
     FriendshipRequestSerializer,
     FriendshipRequestSerializerSample,
     FriendshipRequestUpdateSerializer,
@@ -29,6 +30,7 @@ from django.utils.translation import gettext as _
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -304,45 +306,83 @@ class ProfileView(APIView):
 
     def get(self, request, user_id):
         user = get_object_or_404(User, id=user_id)
-        serializer = self.serializer_class(user, partial=True, context={"request": request})
+        serializer = self.serializer_class(
+            user, partial=True, context={"request": request}
+        )
 
-        # Safely determine if the authenticated user is the profile owner
         is_owner = False
-        is_friend = False  # <--- initialize
+        is_friend = False
+        friendship_status = None  # <-- Initialize
 
+        # Fetch posts depending on user type
         if request.user.is_authenticated:
             if request.user.id == user_id:
                 is_owner = True
                 posts = Post.objects.filter(created_by=user).order_by("-created_at")
             else:
-                posts = Post.objects.filter(created_by=user, role="public").order_by("-created_at")
-                # Check if authenticated user is a friend of the target user
+                posts = Post.objects.filter(created_by=user, role="public").order_by(
+                    "-created_at"
+                )
+
+                # Friendship check
                 is_friend = user.friends.filter(id=request.user.id).exists()
+
+                if is_friend:
+                    friendship_status = "accepted"
+                else:
+                    # Check if a request was sent or received
+                    sent_request = FriendshipRequest.objects.filter(
+                        created_by=request.user,
+                        created_for=user,
+                        status=FriendshipRequest.SENT,
+                    ).first()
+                    received_request = FriendshipRequest.objects.filter(
+                        created_by=user,
+                        created_for=request.user,
+                        status=FriendshipRequest.SENT,
+                    ).first()
+
+                    if sent_request:
+                        friendship_status = "sent"
+                    elif received_request:
+                        friendship_status = "received"
         else:
-            posts = Post.objects.filter(created_by=user, role="public").order_by("-created_at")
+            posts = Post.objects.filter(created_by=user, role="public").order_by(
+                "-created_at"
+            )
 
-        photos = PostAttachment.objects.filter(post__in=posts, image__isnull=False).order_by("-created_at")
+        # Photos
+        photos_qs = PostAttachment.objects.filter(
+            post__in=posts, image__isnull=False
+        ).order_by("-created_at")
 
-        posts = PostSerializer(posts, many=True, context={"request": request}).data
-        followers_count = 1
+        # Serialize data
+        posts_data = PostSerializer(posts, many=True, context={"request": request}).data
+        photos_data = PostAttachmentSerializer(
+            photos_qs, many=True, context={"request": request}
+        ).data
+
+        # Friends info
         friends_qs = user.friends.all()
-        friends_data = FriendSerializer(friends_qs, many=True, context={"request": request}).data
+        friends_data = FriendSerializer(
+            friends_qs, many=True, context={"request": request}
+        ).data
         friends = {"count": friends_qs.count(), "users": friends_data}
         followers = {
-            "count":followers_count,
-            "follwers_data": {}
-        }
-        photos = PostAttachmentSerializer(photos, many=True, context={"request": request}).data
+            "count": friends_qs.count(),
+            "followers_data": {},
+        }  # adjust as needed
 
         return CustomResponse(
             data={
                 "user_data": serializer.data,
-                "posts": posts,
+                "posts": posts_data,
                 "followers": followers,
                 "friends": friends,
-                "photos": photos,
+                "photos": photos_data,
                 "is_owner": is_owner,
-                "is_friend": is_friend,  # <--- include in response
+                "is_friend": is_friend,
+                "friendship_status": friendship_status,
             },
             message=_("User profile retrieved successfully"),
             status=status.HTTP_200_OK,
@@ -484,5 +524,58 @@ class FriendRequestsView(APIView):
         return CustomResponse(
             data=serializer.data,
             message="Friend Requests retrieved successfully.",
+            status=status.HTTP_200_OK,
+        )
+
+class FriendshipSuggestionsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        current_user = request.user
+
+        # Get users to exclude
+        friend_ids = current_user.friends.values_list('id', flat=True)
+        sent_request_ids = FriendshipRequest.objects.filter(
+            created_by=current_user
+        ).values_list('created_for_id', flat=True)
+        received_request_ids = FriendshipRequest.objects.filter(
+            created_for=current_user
+        ).values_list('created_by_id', flat=True)
+        exclude_ids = list(friend_ids) + list(sent_request_ids) + list(received_request_ids) + [current_user.id]
+
+        # Get base queryset
+        suggestions = User.objects.exclude(id__in=exclude_ids)
+
+        # Try to get suggestions based on profile information if available
+        try:
+            profile = current_user.userprofile
+            enhanced_suggestions = suggestions.filter(
+                Q(userprofile__city=profile.city) |
+                Q(userprofile__country=profile.country) |
+                Q(userprofile__work=profile.work) |
+                Q(userprofile__education=profile.education)
+            ).distinct()
+            # If we don't have enough enhanced suggestions, supplement with random ones
+            if enhanced_suggestions.count() < 10:
+                remaining = 10 - enhanced_suggestions.count()
+                random_suggestions = suggestions.exclude(
+                    id__in=enhanced_suggestions.values_list('id', flat=True)
+                ).order_by('?')[:remaining]
+                suggestions = list(enhanced_suggestions) + list(random_suggestions)
+            else:
+                suggestions = enhanced_suggestions.order_by('?')[:10]
+        except UserProfile.DoesNotExist:
+            # If no profile exists, just get random suggestions
+            suggestions = suggestions.order_by('?')[:10]
+
+        # Serialize the data
+        serializer = FriendSuggestionsSerializer(
+            suggestions, many=True, context={"request": request}
+        )
+        return CustomResponse(
+            data={
+                "suggestions": serializer.data,
+                "count": len(serializer.data),
+            },
             status=status.HTTP_200_OK,
         )
