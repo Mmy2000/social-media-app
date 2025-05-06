@@ -34,7 +34,9 @@ class UserProfileUpdate(serializers.ModelSerializer):
             "age",
             "is_adult",
             "marital_status",
-            "user"
+            "work",
+            "education",
+            "user",
         ]
 
     def update(self, instance, validated_data):

@@ -403,8 +403,9 @@ class ProfileUpdateView(APIView):
         serializer = self.serializer_class(profile, data=request.data, partial=True, context={'request': request})
         if serializer.is_valid():
             serializer.save()
+            user_serializer = UserSerializer(user, context={"request": request})
             return CustomResponse(
-                data=serializer.data,
+                data=user_serializer.data,
                 message=_("User profile updated successfully"),
                 status=status.HTTP_200_OK
             )
