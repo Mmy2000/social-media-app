@@ -579,3 +579,21 @@ class FriendshipSuggestionsAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+class UserSearchView(APIView):
+    permission_classes = [AllowAny]  # You can use AllowAny if you want it public
+
+    def get(self, request):
+        query = request.query_params.get('q', '')
+        users = User.objects.filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(username__icontains=query) |
+            Q(email__icontains=query)
+        ).exclude(id=request.user.id)  # exclude self if logged in
+
+        serializer = FriendSerializer(users, many=True, context={"request": request})
+        return CustomResponse(
+            data=serializer.data,
+            status=status.HTTP_200_OK,
+        )

@@ -15,7 +15,9 @@ from .views import (
     UnfriendView,
     UpdateFriendRequestView,
     FriendsListView,
-    FriendRequestsView,FriendshipSuggestionsAPIView
+    FriendRequestsView,
+    FriendshipSuggestionsAPIView,
+    UserSearchView,
 )
 
 urlpatterns = [
@@ -36,4 +38,5 @@ urlpatterns = [
     path("friends/", FriendsListView.as_view(), name="friends"),
     path("friends_requests/", FriendRequestsView.as_view(), name="friends_requests"),
     path("friends_suggestions/", FriendshipSuggestionsAPIView.as_view(), name="friends_suggestions"),
+    path("search/", UserSearchView.as_view(), name="search"),
 ]
