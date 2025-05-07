@@ -60,6 +60,10 @@ SIMPLE_JWT = {
 }
 
 AUTHENTICATION_BACKENDS = ("django.contrib.auth.backends.ModelBackend",)
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
