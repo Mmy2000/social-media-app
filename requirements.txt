@@ -1,0 +1,14 @@
+Django==4.2.16
+psycopg2-binary==2.9.9
+dj-rest-auth==4.0.0
+django-allauth==0.52.0
+django-cors-headers==4.3.1
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.3.1
+pillow==10.2.0
+channels==4.0.0
+daphne==4.0.0
+amadeus==5.2.0 
+requests==2.31.0
+django-environ==0.10.0
+django-summernote==0.8.20.0

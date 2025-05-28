@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from accounts.models import FriendshipRequest, UserProfile
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from notifications.models import Notification
 from posts.models import Post, PostAttachment
 from posts.serializers import PostAttachmentSerializer, PostSerializer
 from .serializers import (
@@ -427,6 +428,11 @@ class SendFriendRequestView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
             self.perform_create(serializer)
+            Notification.objects.create(
+                recipient=serializer.validated_data.get("created_for"),
+                sender=serializer.validated_data.get("created_by"),
+                notification_type="friend_request",
+            )
             return CustomResponse(
                 data=serializer.data,
                 message="Friend request sent successfully.",
@@ -458,8 +464,15 @@ class UpdateFriendRequestView(generics.UpdateAPIView):
             )
 
         serializer = self.get_serializer(instance, data=request.data, partial=True)
+        
         if serializer.is_valid():
             self.perform_update(serializer)
+            print(instance.created_for, instance.created_by)
+            Notification.objects.create(
+                recipient=instance.created_for,
+                sender=instance.created_by,
+                notification_type="friend_request_accepted",
+            )
             return CustomResponse(
                 data=serializer.data,
                 message="Friend request updated successfully.",
@@ -488,6 +501,12 @@ class UnfriendView(APIView):
             friend.friends_count = friend.friends.count()
             user.save()
             friend.save()
+
+            Notification.objects.create(
+                recipient=friend,
+                sender=user,
+                notification_type="friend_request_cancelled",
+            )
 
             return CustomResponse(
                 message="Friend removed successfully.",

@@ -5,7 +5,6 @@ from chat import routing
 from chat.token_auth import TokenAuthMiddleware
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
-application = get_asgi_application()
 
 application = ProtocolTypeRouter(
     {
