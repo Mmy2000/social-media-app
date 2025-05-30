@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser , BaseUserManager
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -50,26 +50,26 @@ class User(AbstractBaseUser):
         ("twitter", "twitter"),
     )
 
-    first_name      = models.CharField(max_length=50)
-    last_name       = models.CharField(max_length=50)
-    username        = models.CharField(max_length=50, unique=True)
-    email           = models.EmailField(max_length=100, unique=True)
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    username = models.CharField(max_length=50, unique=True)
+    email = models.EmailField(max_length=100, unique=True)
 
     friends = models.ManyToManyField("self")
     friends_count = models.IntegerField(default=0)
 
     # required
-    date_joined     = models.DateTimeField(auto_now_add=True)
-    last_login      = models.DateTimeField(auto_now_add=True)
-    is_admin        = models.BooleanField(default=False)
-    is_staff        = models.BooleanField(default=False)
-    is_active       = models.BooleanField(default=False)
-    is_superadmin   = models.BooleanField(default=False)
-    otp             = models.CharField(max_length=6, blank=True, null=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+    last_login = models.DateTimeField(auto_now_add=True)
+    is_admin = models.BooleanField(default=False)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
+    is_superadmin = models.BooleanField(default=False)
+    otp = models.CharField(max_length=6, blank=True, null=True)
     source = models.CharField(choices=SOURCES, max_length=50, default="local")
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     objects = MyAccountManager()
 
@@ -82,21 +82,27 @@ class User(AbstractBaseUser):
     def has_module_perms(self, add_label):
         return True
 
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    profile_picture = models.ImageField(upload_to='users/profile_pictures/', blank=True, null=True)
-    cover_picture = models.ImageField(upload_to='users/cover_pictures/', blank=True, null=True)
+    profile_picture = models.ImageField(
+        upload_to="users/profile_pictures/", blank=True, null=True
+    )
+    cover_picture = models.ImageField(
+        upload_to="users/cover_pictures/", blank=True, null=True
+    )
     country = models.CharField(max_length=50, blank=True, null=True)
     city = models.CharField(max_length=50, blank=True, null=True)
     bio = models.TextField(max_length=500, blank=True, null=True)
     gender = models.CharField(max_length=10, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     marital_status = models.CharField(max_length=20, blank=True, null=True)
-    phone_number = models.CharField(max_length=50,null=True, blank=True)
+    phone_number = models.CharField(max_length=50, null=True, blank=True)
     work = models.CharField(max_length=50, blank=True, null=True)
     education = models.CharField(max_length=50, blank=True, null=True)
     created_at = models.DateTimeField("created_at", default=timezone.now)
-    updated_at = models.DateTimeField( auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_active = models.DateTimeField(default=timezone.now)
 
     @property
     def age(self):
@@ -133,6 +139,7 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name} Profile"
 
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
@@ -140,19 +147,23 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 
 class FriendshipRequest(models.Model):
-    SENT = 'sent'
-    ACCEPTED = 'accepted'
-    REJECTED = 'rejected'
+    SENT = "sent"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
 
     STATUS_CHOICES = (
-        (SENT, 'Sent'),
-        (ACCEPTED, 'Accepted'),
-        (REJECTED, 'Rejected'),
+        (SENT, "Sent"),
+        (ACCEPTED, "Accepted"),
+        (REJECTED, "Rejected"),
     )
 
-    created_for = models.ForeignKey(User, related_name='received_friendshiprequests', on_delete=models.CASCADE)
+    created_for = models.ForeignKey(
+        User, related_name="received_friendshiprequests", on_delete=models.CASCADE
+    )
     created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(User, related_name='created_friendshiprequests', on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        User, related_name="created_friendshiprequests", on_delete=models.CASCADE
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=SENT)
 
     def __str__(self):

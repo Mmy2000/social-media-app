@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import User, UserProfile,FriendshipRequest
+from .models import User, UserProfile, FriendshipRequest
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils import timezone
 
 
 class SampleUserData(serializers.ModelSerializer):
@@ -20,6 +21,7 @@ class SampleUserData(serializers.ModelSerializer):
 
 class UserProfileUpdate(serializers.ModelSerializer):
     user = SampleUserData()
+
     class Meta:
         model = UserProfile
         fields = [
@@ -111,16 +113,16 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'email', 'password', 'password2']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ["first_name", "last_name", "email", "password", "password2"]
+        extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password2']:
+        if attrs["password"] != attrs["password2"]:
             raise serializers.ValidationError({"password": "Passwords must match."})
         return attrs
 
     def create(self, validated_data):
-        validated_data.pop('password2')  # Remove password2 from data
+        validated_data.pop("password2")  # Remove password2 from data
         user = User.objects.create_user(**validated_data)
         return user
 
@@ -141,6 +143,7 @@ class ChangePasswordSerializer(serializers.Serializer):
                 "New password and confirm password do not match."
             )
         return data
+
 
 class ResetPasswordSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -173,28 +176,38 @@ class ForgotPasswordSerializer(serializers.Serializer):
 
 class SocialLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    username = serializers.CharField(required=False, allow_blank=True)  # Optional for login
-    first_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
-    last_name = serializers.CharField(required=False, allow_blank=True)  # Optional for login
-    profile_image = serializers.ImageField(required=False, allow_null=True)  # Optional for login
-    source = serializers.CharField(required=False, allow_blank=True)  # Optional for login
+    username = serializers.CharField(
+        required=False, allow_blank=True
+    )  # Optional for login
+    first_name = serializers.CharField(
+        required=False, allow_blank=True
+    )  # Optional for login
+    last_name = serializers.CharField(
+        required=False, allow_blank=True
+    )  # Optional for login
+    profile_image = serializers.ImageField(
+        required=False, allow_null=True
+    )  # Optional for login
+    source = serializers.CharField(
+        required=False, allow_blank=True
+    )  # Optional for login
 
     def create_or_get_user(self, validated_data):
-        email = validated_data.get('email')
-        username = validated_data.get('username', email.split('@')[0])
-        first_name = validated_data.get('first_name', '')
-        last_name = validated_data.get('last_name', '')
-        source = validated_data.get('source', 'local')
-        image = validated_data.get('profile_image', None)
+        email = validated_data.get("email")
+        username = validated_data.get("username", email.split("@")[0])
+        first_name = validated_data.get("first_name", "")
+        last_name = validated_data.get("last_name", "")
+        source = validated_data.get("source", "local")
+        image = validated_data.get("profile_image", None)
 
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
-                'username': username,
-                'first_name': first_name,
-                'last_name': last_name,
-                'source': source,
-            }
+                "username": username,
+                "first_name": first_name,
+                "last_name": last_name,
+                "source": source,
+            },
         )
         if created and image:
             user.userprofile.profile_picture = image
@@ -214,21 +227,25 @@ class FriendshipRequestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FriendshipRequest
-        fields = ['id', 'created_by', 'created_for', 'status']
-        read_only_fields = ['status']
+        fields = ["id", "created_by", "created_for", "status"]
+        read_only_fields = ["status"]
 
     def validate(self, attrs):
-        created_by = self.context['request'].user
-        created_for = attrs.get('created_for')
+        created_by = self.context["request"].user
+        created_for = attrs.get("created_for")
 
         if created_by == created_for:
-            raise serializers.ValidationError("You cannot send a friend request to yourself.")
-        
+            raise serializers.ValidationError(
+                "You cannot send a friend request to yourself."
+            )
+
         if created_for in created_by.friends.all():
             raise serializers.ValidationError("You are already friends with this user.")
 
         if FriendshipRequest.objects.filter(
-            created_by=created_by, created_for=created_for, status=FriendshipRequest.SENT
+            created_by=created_by,
+            created_for=created_for,
+            status=FriendshipRequest.SENT,
         ).exists():
             raise serializers.ValidationError("Friend request already sent.")
 
@@ -238,7 +255,7 @@ class FriendshipRequestSerializer(serializers.ModelSerializer):
 class FriendshipRequestUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = FriendshipRequest
-        fields = ['status']
+        fields = ["status"]
 
     def validate_status(self, value):
         if value not in [FriendshipRequest.ACCEPTED, FriendshipRequest.REJECTED]:
@@ -246,7 +263,7 @@ class FriendshipRequestUpdateSerializer(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-        new_status = validated_data['status']
+        new_status = validated_data["status"]
         if new_status == FriendshipRequest.ACCEPTED:
             # Add each user to the other's friend list
             instance.created_by.friends.add(instance.created_for)
@@ -261,6 +278,7 @@ class FriendshipRequestUpdateSerializer(serializers.ModelSerializer):
         instance.status = new_status
         instance.save()
         return instance
+
 
 class ProfileFriends(serializers.ModelSerializer):
     profile_picture = serializers.SerializerMethodField()
@@ -281,10 +299,20 @@ class ProfileFriends(serializers.ModelSerializer):
 
 class FriendSerializer(serializers.ModelSerializer):
     profile = ProfileFriends(source="userprofile", read_only=True)
+    is_online = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "username", "first_name", "last_name", "profile"]
+        fields = ["id", "username", "first_name", "last_name", "profile", "is_online"]
+
+    def get_is_online(self, obj):
+        try:
+            now = timezone.now()
+            return (
+                now - obj.userprofile.last_active
+            ).total_seconds() < 300  # 5 minutes
+        except:
+            return False
 
 
 class FriendshipRequestSerializerSample(serializers.ModelSerializer):
@@ -307,13 +335,17 @@ class FriendshipRequestSerializerSample(serializers.ModelSerializer):
     def get_mutual_friends(self, obj):
         request_user = obj.created_for
         requester = obj.created_by
-        mutuals = request_user.friends.filter(id__in=requester.friends.values_list("id", flat=True))
+        mutuals = request_user.friends.filter(
+            id__in=requester.friends.values_list("id", flat=True)
+        )
         return FriendSerializer(mutuals, many=True, context=self.context).data
 
     def get_mutual_friends_count(self, obj):
         request_user = obj.created_for
         requester = obj.created_by
-        return request_user.friends.filter(id__in=requester.friends.values_list("id", flat=True)).count()
+        return request_user.friends.filter(
+            id__in=requester.friends.values_list("id", flat=True)
+        ).count()
 
 
 class FriendSuggestionsSerializer(serializers.ModelSerializer):
