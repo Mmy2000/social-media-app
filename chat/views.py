@@ -22,7 +22,7 @@ class ConversationDetailView(APIView):
 
     def get(self, request, pk):
         conversation = get_object_or_404(request.user.conversations, pk=pk)
-        conversation_serializer = ConversationDetailSerializer(conversation)
+        conversation_serializer = ConversationDetailSerializer(conversation,context={'request': request})
         messages_serializer = ConversationMessageSerializer(conversation.messages.all(), many=True,context={'request': request})
         return CustomResponse(
             data={

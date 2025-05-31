@@ -313,6 +313,11 @@ class FriendSerializer(serializers.ModelSerializer):
             ).total_seconds() < 300  # 5 minutes
         except:
             return False
+    
+    def get_image(self, obj):
+        request = self.context.get("request")
+        url = obj.userprofile.get_profile_picture
+        return request.build_absolute_uri(url) if request else url
 
 
 class FriendshipRequestSerializerSample(serializers.ModelSerializer):

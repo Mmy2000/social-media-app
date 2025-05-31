@@ -38,4 +38,5 @@ class ConversationMessageSerializer(serializers.ModelSerializer):
             "body",
             "sent_to",
             "created_by",
+            "created_at",
         )

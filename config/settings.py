@@ -17,11 +17,13 @@ WEBSITE_URL = "http://127.0.0.1:8000/"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:8080",  # For React or other front-end dev servers
     "http://127.0.0.1:8000",  # Django local development server
+    "https://social-network-react-black.vercel.app",
 ]
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
